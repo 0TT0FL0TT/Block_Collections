@@ -1752,21 +1752,14 @@ const updateFileCollection = async (app: App, file: TFile, newCollectionValue: s
 };
 
 async function getMostRecentBlockIdDate(app: App, files: TFile[]): Promise<string> {
-	// Non-iOS15-friendly regex removed
-	// const yymmddRegex = /(?<!#)\^([0-9]{6})/gm;
-	const yymmddRegex = /(?:^|[^#])\^([0-9]{6})/gm;
+	const yymmddRegex = /^[0-9]{6}$/;
 	const foundDates: string[] = [];
 
 	for (const file of files) {
-		const content = await app.vault.read(file);
-		let match: RegExpExecArray | null;
-		while ((match = yymmddRegex.exec(content))) {
-			// Filter out matches where ^ is preceded by # (iOS 15 compatible)
-			const matchIndex = match.index;
-			if (matchIndex > 0 && content.charAt(matchIndex) === '^' && content.charAt(matchIndex - 1) === '#') {
-				continue;
-			}
-			foundDates.push(match[1]);
+		const cache = app.metadataCache.getCache(file.path);
+		if (!cache?.blocks) continue;
+		for (const blockId of Object.keys(cache.blocks)) {
+			if (yymmddRegex.test(blockId)) foundDates.push(blockId);
 		}
 	}
 
