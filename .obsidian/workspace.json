@@ -32,7 +32,7 @@
       {
         "id": "0bde98a2b4dfbf11",
         "type": "tabs",
-        "dimension": 41.97324414715719,
+        "dimension": 41.973244147157196,
         "children": [
           {
             "id": "cbf9a49cd8d9ddf9",
@@ -103,8 +103,7 @@
               "title": "Bookmarks"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -210,7 +209,7 @@
       "bases:Create new base": false
     }
   },
-  "active": "3892801091561da3",
+  "active": "5897b751297aafa0",
   "lastOpenFiles": [
     "README.md",
     "Canvases/Collections.canvas",

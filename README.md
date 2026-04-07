@@ -73,6 +73,8 @@ A modal appears asking which type of block ID to generate:
 
 There is a **Create New** toggle button. When clicked, it hides the search view and shows a date picker pre-filled with today's date. Click it again to return to search. The **Use This Date** button confirms the date and uses it as the block ID.
 
+If the picked date's `YYMMDD` block ID is already used by an existing collection card in the Collections Canvas, the plugin shows an informational notice telling you which collection already uses that ID, but it still proceeds (so you can intentionally reuse the same date block ID to add another file to that existing collection).
+
 For blockquote lines, the block ID is appended inline at the end of the last line rather than on a new line. At end-of-file, block IDs are always converted to inline format (never placed on a new line below the block). The plugin also handles end-of-file spacing so no trailing blank lines are created incorrectly.
 
 A footnote warning is briefly shown if the selection or the current cursor line contains footnote references (`[^1]`), since embedded blocks with footnotes will not render correctly when the block is embedded in another file.
