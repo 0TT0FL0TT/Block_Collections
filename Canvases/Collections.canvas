@@ -1,0 +1,21 @@
+{
+	"nodes":[
+		{
+			"id":"mnokr0r2",
+			"type":"text",
+			"text":"```meta-bind-button\nstyle: primary\nlabel: obsidian, git\nid: trigger-ups\naction:\n  type: open\n  link: obsidian://search?&query=file%3A%20%2F%5E(Obs%20VS%20Logseq%201%7CObs%20VS%20Logseq%205)%5C.md%2F%20%2F(obsidian%7Cgit)%2F\n```\n```meta-bind-button\nstyle: default\nlabel: Block 260407\nid: trigger-khq\naction:\n  type: open\n  link: obsidian://search?query=file%3A%20%2F%5E(Obs%20VS%20Logseq%201%7CObs%20VS%20Logseq%205)%5C.md%2F%20block%3A%20260407\n```\n- [[Obs VS Logseq 1#^260407]]\n- [[Obs VS Logseq 5#^260407]]",
+			"styleAttributes":{},
+			"extra":"cs-extra",
+			"bg":"cs-bg-gradient",
+			"x":920,
+			"y":-340,
+			"width":280,
+			"height":240
+		}
+	],
+	"edges":[],
+	"metadata":{
+		"version":"1.0-1.0",
+		"frontmatter":{}
+	}
+}

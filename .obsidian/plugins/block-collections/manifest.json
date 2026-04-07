@@ -1,0 +1,9 @@
+{
+  "id": "block-collections",
+  "name": "Block Collections",
+  "version": "1.0.0",
+  "minAppVersion": "1.4.0",
+  "description": "Block level connections with Block ID creator, collection manager, and collection querier.",
+  "author": "Otto Flott",
+  "isDesktopOnly": false
+}

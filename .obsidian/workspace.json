@@ -1,0 +1,227 @@
+{
+  "main": {
+    "id": "68472d0c12a937d3",
+    "type": "split",
+    "children": [
+      {
+        "id": "ce13df4374c9a23b",
+        "type": "tabs",
+        "dimension": 58.026755852842804,
+        "children": [
+          {
+            "id": "3892801091561da3",
+            "type": "leaf",
+            "pinned": true,
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "Canvases/Collections.canvas",
+                "viewState": {
+                  "x": 1315.4706979981052,
+                  "y": -5.876058393701891,
+                  "zoom": -0.5200000187754633
+                }
+              },
+              "pinned": true,
+              "icon": "lucide-layout-dashboard",
+              "title": "Collections"
+            }
+          }
+        ]
+      },
+      {
+        "id": "0bde98a2b4dfbf11",
+        "type": "tabs",
+        "dimension": 41.97324414715719,
+        "children": [
+          {
+            "id": "cbf9a49cd8d9ddf9",
+            "type": "leaf",
+            "pinned": true,
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "README.md",
+                "mode": "source",
+                "source": false
+              },
+              "pinned": true,
+              "icon": "lucide-file",
+              "title": "README"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "cbb9cb621c3e7aca",
+    "type": "split",
+    "children": [
+      {
+        "id": "6879f13151bb4b00",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5897b751297aafa0",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "afbed0a19c93689f",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "/git",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "83a4b1eb4a4b366e",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "horizontal",
+    "width": 243.5078125
+  },
+  "right": {
+    "id": "f81492611592e315",
+    "type": "split",
+    "children": [
+      {
+        "id": "eaac94e5bf76b86d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "34d75cd93f9d92bd",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Canvases/Collections.canvas",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Collections"
+            }
+          },
+          {
+            "id": "71945675b86b8655",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "180165b1561f08b2",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "3a96b8375df7b000",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "18faa9a18096cd47",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "3892801091561da3",
+  "lastOpenFiles": [
+    "README.md",
+    "Canvases/Collections.canvas",
+    "ObsidianVSLogseq/Obs VS Logseq 5.md",
+    "ObsidianVSLogseq/Obs VS Logseq 4.md",
+    "ObsidianVSLogseq/Obs VS Logseq 1.md",
+    "ObsidianVSLogseq/Obs VS Logseq 3.md",
+    "ObsidianVSLogseq/Obs VS Logseq 2.md",
+    "Canvases/Collections.canvas.canvas",
+    "Test_files/Test1.md",
+    "ObsidianVSLogseq",
+    "Canvases"
+  ]
+}
