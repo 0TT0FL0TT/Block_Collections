@@ -7,6 +7,7 @@ interface BlockCollectionsSettings {
 	plantUMLFrontmatterKey: string;
 	zoteroAuthorTitleKey: string;
 	zoteroItemIdKey: string;
+	parseSpacesAsTerms: boolean;
 }
 
 const DEFAULT_SETTINGS: BlockCollectionsSettings = {
@@ -15,7 +16,8 @@ const DEFAULT_SETTINGS: BlockCollectionsSettings = {
 	showPlantUML: true,
 	plantUMLFrontmatterKey: 'plantuml_nodes',
 	zoteroAuthorTitleKey: 'zotero_author-title',
-	zoteroItemIdKey: 'zotero_itemid'
+	zoteroItemIdKey: 'zotero_itemid',
+	parseSpacesAsTerms: false
 };
 
 const CONFIG = {
@@ -327,6 +329,11 @@ class EnhancedDatePickerModal extends Modal {
 	}
 
 	async onOpen() {
+		const modalEl = this.modalEl;
+		modalEl.style.width = CONFIG.blockIdModal.width;
+		modalEl.style.maxHeight = CONFIG.blockIdModal.maxHeight;
+		modalEl.style.overflowY = 'auto';
+
 		await this.loadCanvasData();
 		this.contentEl.empty();
 		this.contentEl.createEl('h2', { text: 'Choose Block ID' });
@@ -641,27 +648,27 @@ const sanitizeFilename = (app: App, filename: string): string => {
 	return app.metadataCache.getFirstLinkpathDest(filename, '')?.basename || filename;
 };
 
-const parseCollectionValue = (value: string): string[] => {
-	return value
-		.split(',')
+const parseCollectionValue = (value: string, parseSpaces = false): string[] => {
+	const splitValue = parseSpaces
+		? value.split(/[,\s]+/)
+		: value.split(',');
+
+	return splitValue
 		.map(term => term.trim())
 		.map(term => term.replace(/\([^)]*\)/g, '').trim().toLowerCase())
 		.filter(term => term.length > 0);
 };
 
-const resolveCanvasPath = (app: App, settings: BlockCollectionsSettings, createIfMissing = false): TFile | null => {
+const resolveCanvasPath = (app: App, settings: BlockCollectionsSettings): TFile | null => {
 	let relativePath = settings.canvasRelativePath?.trim() || CONFIG.canvas.relativePathFallback;
-	
+
 	// Normalize: remove leading/trailing slashes, ensure .canvas extension
 	relativePath = relativePath.replace(/^[/\\]+/, '').replace(/[/\\]+$/, '');
 	if (!relativePath.endsWith('.canvas')) relativePath += '.canvas';
 	relativePath = relativePath.replace(/\\/g, '/');
-	
-	console.log('[BlockCollections] Looking for canvas at:', relativePath);
-	console.log('[BlockCollections] Settings canvasRelativePath:', settings.canvasRelativePath);
-	
+
 	let file = app.vault.getAbstractFileByPath(relativePath) as TFile;
-	
+
 	// Try fallback locations
 	if (!file) {
 		const fallbacks = [
@@ -669,16 +676,11 @@ const resolveCanvasPath = (app: App, settings: BlockCollectionsSettings, createI
 			relativePath.replace(/\//g, '\\'),
 		];
 		for (const path of fallbacks) {
-			console.log('[BlockCollections] Trying fallback:', path);
 			file = app.vault.getAbstractFileByPath(path) as TFile;
 			if (file) break;
 		}
 	}
-	
-	if (!file) {
-		console.log('[BlockCollections] Canvas file not found. Vault canvas files:', app.vault.getFiles().filter(f => f.path.endsWith('.canvas')).map(f => f.path));
-	}
-	
+
 	return file;
 };
 
@@ -785,11 +787,11 @@ const calculateNodeHeight = (filesCount: number): number => {
 	return baseHeight + listHeight + urlBuffer + padding;
 };
 
-const createCanvasNode = (app: App, files: string[], collectionValue: string, blockIdDate: string, canvasData: any) => {
+const createCanvasNode = (app: App, files: string[], collectionValue: string, blockIdDate: string, canvasData: any, settings: BlockCollectionsSettings) => {
 	const triggerId1 = 'trigger-' + Math.random().toString(36).substring(2, 5);
 	const triggerId2 = 'trigger-' + Math.random().toString(36).substring(2, 5);
 
-	const searchTerms = parseCollectionValue(collectionValue);
+	const searchTerms = parseCollectionValue(collectionValue, settings.parseSpacesAsTerms);
 	const sanitizedFiles = files.map(f => sanitizeFilename(app, f));
 	const encodedFiles = sanitizedFiles.map(f => encodeURIComponent(f)).join('%7C');
 	const encodedSearchTerms = searchTerms.join('%7C');
@@ -870,7 +872,7 @@ const updateCanvasFile = async (
 		}
 
 		const allFiles = Array.from(uniqueFiles).sort((a, b) => a.localeCompare(b, 'hu', { sensitivity: 'base' }));
-		const newNode = createCanvasNode(app, allFiles, collectionValue, blockIdDate, canvasData);
+		const newNode = createCanvasNode(app, allFiles, collectionValue, blockIdDate, canvasData, settings);
 		if (hadExistingCard && preservedX !== undefined && preservedY !== undefined) {
 			newNode.x = preservedX;
 			newNode.y = preservedY;
@@ -1197,7 +1199,6 @@ class CollectionInputModal extends Modal {
 	renameList!: HTMLElement;
 	removeList!: HTMLElement;
 	removeFilterInput!: HTMLInputElement;
-	selectedForRename: string | null = null;
 	private isRenameMode: boolean = false;
 	private originalCollection: string = '';
 	private settings: BlockCollectionsSettings;
@@ -1511,7 +1512,7 @@ class CollectionInputModal extends Modal {
 		} else {
 			if (blockId) {
 				canvasData.nodes.splice(cardIndex, 1);
-				const newNode = createCanvasNode(this.app, remainingFiles, collectionValue, blockId, canvasData);
+				const newNode = createCanvasNode(this.app, remainingFiles, collectionValue, blockId, canvasData, this.settings);
 				newNode.x = cardNode.x;
 				newNode.y = cardNode.y;
 				canvasData.nodes.push(newNode);
@@ -1673,7 +1674,7 @@ class CollectionInputModal extends Modal {
 				}
 
 				const files = getExistingCardFiles(oldText);
-				const searchTerms = parseCollectionValue(newCollection);
+				const searchTerms = parseCollectionValue(newCollection, this.settings.parseSpacesAsTerms);
 				const encodedSearchTerms = searchTerms.join('%7C');
 				const encodedFiles = files.map(f => encodeURIComponent(f)).join('%7C');
 
@@ -1818,10 +1819,11 @@ async function handleSelectionBasedCollection(
 }
 
 async function fileHasBlockId(app: App, file: TFile, blockId: string): Promise<boolean> {
+	// Fast path: check metadata cache first
+	const cache = app.metadataCache.getCache(file.path);
+	if (cache?.blocks && blockId in cache.blocks) return true;
+	// Fall back to disk read only if cache doesn't have it yet
 	const content = await app.vault.read(file);
-	// Non-iOS15 friendly regex removed
-	// const blockIdRegex = new RegExp(`(?<!#)\\^${blockId}`, 'm');
-	// Match ^blockId and filter out those preceded by # (iOS 15 compatible - no negative lookbehind)
 	const blockIdRegex = new RegExp(`\\^${blockId}`, 'gm');
 	let match: RegExpExecArray | null;
 	while ((match = blockIdRegex.exec(content))) {
@@ -2093,10 +2095,12 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 		return;
 	}
 
-	let fileContent = await app.vault.read(currentFile);
 	const selStart = editor.getCursor('from');
 	const selEnd = editor.getCursor('to');
-	const lines = fileContent.split('\n');
+
+	// Use editor content directly as source of truth to avoid disk round-trip issues
+	const editorContent = editor.getValue();
+	const lines = editorContent.split('\n');
 	let charStart = 0,
 		charEnd = 0;
 	for (let i = 0; i < selStart.line; i++) charStart += lines[i].length + 1;
@@ -2104,23 +2108,22 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 	for (let i = 0; i < selEnd.line; i++) charEnd += lines[i].length + 1;
 	charEnd += selEnd.ch;
 
-	// CRITICAL: Check if editor content matches file content at selection position
-	// If user just deleted a block ID, fileContent may be stale
-	const fileContentAtSelection = fileContent.substring(charStart, charEnd);
-	if (fileContentAtSelection !== selection) {
-		// Editor and file are out of sync - force save first
-		console.log('[BlockCollections] Editor/file mismatch detected, saving first...');
-		await app.vault.modify(currentFile, editor.getValue());
-		await new Promise(resolve => setTimeout(resolve, 100));
-		// Re-read file content after save
+	// Check if editor content matches selection
+	const editorContentAtSelection = editorContent.substring(charStart, charEnd);
+	let fileContent: string;
+	if (editorContentAtSelection === selection) {
+		// Editor content is consistent with selection — use it as working copy
+		fileContent = editorContent;
+	} else {
+		// Still out of sync somehow — fall back to disk content as-is
+		console.log('[BlockCollections] Editor content mismatch, falling back to disk...');
 		fileContent = await app.vault.read(currentFile);
-		// Recalculate positions with fresh content
-		const freshLines = fileContent.split('\n');
+		const diskLines = fileContent.split('\n');
 		charStart = 0;
 		charEnd = 0;
-		for (let i = 0; i < selStart.line; i++) charStart += freshLines[i].length + 1;
+		for (let i = 0; i < selStart.line; i++) charStart += diskLines[i].length + 1;
 		charStart += selStart.ch;
-		for (let i = 0; i < selEnd.line; i++) charEnd += freshLines[i].length + 1;
+		for (let i = 0; i < selEnd.line; i++) charEnd += diskLines[i].length + 1;
 		charEnd += selEnd.ch;
 	}
 
@@ -2192,7 +2195,6 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 
 		const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, updatedParagraphs.join('\n\n'));
 		await app.vault.modify(currentFile, newContent);
-		await app.vault.read(currentFile);
 		await new Promise(resolve => setTimeout(resolve, 2000));
 
 		if (Object.keys(pendingFrontmatterChanges).length > 0) {
@@ -2248,18 +2250,7 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 						? selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`
 						: selection + `\n^${blockId}`;
 
-					console.log('[BlockCollections] Creating random block ID:', {
-						blockId,
-						selection: selection.slice(0, 100) + (selection.length > 100 ? '...' : ''),
-						newBlock: newBlock.slice(0, 100) + (newBlock.length > 100 ? '...' : ''),
-						charStart,
-						charEnd,
-						isBlockquote
-					});
-
 					const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, newBlock);
-					console.log('[BlockCollections] New content preview:', newContent.substring(charStart - 50, charEnd + newBlock.length + 50));
-
 					await app.vault.modify(currentFile, newContent);
 					const clipboardText = `![[${currentFile.basename}#^${blockId}]]`;
 					await navigator.clipboard.writeText(clipboardText);
@@ -2305,18 +2296,7 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 							? selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`
 							: selection + `\n^${blockId}`;
 
-						console.log('[BlockCollections] Creating date block ID:', {
-							blockId,
-							selection: selection.slice(0, 100) + (selection.length > 100 ? '...' : ''),
-							newBlock: newBlock.slice(0, 100) + (newBlock.length > 100 ? '...' : ''),
-							charStart,
-							charEnd,
-							isBlockquote
-						});
-
 						const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, newBlock);
-						console.log('[BlockCollections] New content preview:', newContent.substring(charStart - 50, charEnd + newBlock.length + 50));
-
 						await app.vault.modify(currentFile, newContent);
 						const clipboardText = `![[${currentFile.basename}#^${blockId}]]`;
 						await navigator.clipboard.writeText(clipboardText);
@@ -2461,6 +2441,16 @@ class BlockCollectionsSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName('Parse spaces as separate search terms')
+			.setDesc('When enabled, "obsidian blocks" becomes obsidian|blocks in canvas search queries, same as writing "obsidian, blocks".')
+			.addToggle(toggle =>
+				toggle.setValue(this.plugin.settings.parseSpacesAsTerms).onChange(async value => {
+					this.plugin.settings.parseSpacesAsTerms = value;
+					await this.plugin.saveSettings();
+				})
+			);
 
 		new Setting(containerEl)
 			.setName('Show PlantUML')

@@ -12,6 +12,7 @@ Open Settings → Block Collections to configure:
 
 - **Canvas relative path** — path to your canvas file from the vault root (default: `Canvases/Collections.canvas`)
 - **Folders to exclude** — comma-separated folder names skipped during vault-wide scans (default: `SYSTEM`, `DAILY`, `assets`, `HUB`)
+- **Parse spaces as separate search terms** — when enabled, collection names like `"obsidian blocks"` are treated as two separate search terms (`obsidian|blocks`) in the canvas button query, equivalent to writing `"obsidian, blocks"`. When disabled (default), spaces are preserved as literal spaces in the search. Enable it if you want the individual strings searched in the content of the linked files.
 - **Show PlantUML** — toggles the PlantUML section in the Collection Querier modal (default: `false`, because scripts relating to the handling of frontmatter properties to files are not bundled with the plugin)
 
 Other settings that only make sense to the author of this plugin:

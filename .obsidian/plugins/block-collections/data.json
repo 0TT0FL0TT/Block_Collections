@@ -9,5 +9,6 @@
   "showPlantUML": false,
   "plantUMLFrontmatterKey": "plantuml_nodes",
   "zoteroAuthorTitleKey": "zotero_author-title",
-  "zoteroItemIdKey": "zotero_itemid"
+  "zoteroItemIdKey": "zotero_itemid",
+  "parseSpacesAsTerms": false
 }
