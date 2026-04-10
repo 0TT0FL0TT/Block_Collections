@@ -273,7 +273,7 @@ class EnhancedDatePickerModal extends Modal {
 		if (!(canvasFile instanceof TFile)) return;
 
 		const content = await this.app.vault.read(canvasFile);
-		this.canvasData = normalizeCanvasData(JSON.parse(content));
+		this.canvasData = parseCanvasContent(content);
 
 		this.canvasData.nodes.forEach((node: any) => {
 			if (node.type === 'group') {
@@ -691,13 +691,17 @@ const normalizeCanvasData = (canvasData: any): any => {
 	return canvasData;
 };
 
+const parseCanvasContent = (content: string): any => {
+	return normalizeCanvasData(content.trim() ? JSON.parse(content) : {});
+};
+
 const getBlockIdForCollection = async (app: App, settings: BlockCollectionsSettings, collectionValue: string): Promise<string | null> => {
 	try {
 		const canvasFile = resolveCanvasPath(app, settings);
 		if (!canvasFile || !(canvasFile instanceof TFile)) return null;
 
 		const content = await app.vault.read(canvasFile);
-		const canvasData = normalizeCanvasData(JSON.parse(content));
+		const canvasData = parseCanvasContent(content);
 
 		for (const node of canvasData.nodes) {
 			if (!node.text) continue;
@@ -850,7 +854,7 @@ const updateCanvasFile = async (
 		if (!canvasFile || !(canvasFile instanceof TFile)) throw new Error('Canvas file not found');
 
 		const content = await app.vault.read(canvasFile);
-		const canvasData = normalizeCanvasData(JSON.parse(content));
+		const canvasData = parseCanvasContent(content);
 
 		const similarCards = findSimilarCards(canvasData, collectionValue);
 		if (similarCards.length > 0) new Notice(`Similar collections found: ${similarCards.join(', ')}`, 5000);
@@ -893,7 +897,7 @@ const findCollectionValueByBlockId = async (app: App, settings: BlockCollections
 		if (!canvasFile || !(canvasFile instanceof TFile)) throw new Error('Canvas file not found');
 
 		const content = await app.vault.read(canvasFile);
-		const canvasData = normalizeCanvasData(JSON.parse(content));
+		const canvasData = parseCanvasContent(content);
 
 		for (const node of canvasData.nodes) {
 			if (!node.text) continue;
@@ -1487,7 +1491,7 @@ class CollectionInputModal extends Modal {
 		}
 
 		const content = await this.app.vault.read(canvasFile);
-		const canvasData = normalizeCanvasData(JSON.parse(content));
+		const canvasData = parseCanvasContent(content);
 		const cardIndex = findExistingCard(canvasData, collectionValue);
 
 		if (cardIndex === -1) {
@@ -1657,7 +1661,7 @@ class CollectionInputModal extends Modal {
 			if (!canvasFile || !(canvasFile instanceof TFile)) return false;
 
 			const content = await this.app.vault.read(canvasFile);
-			const canvasData = normalizeCanvasData(JSON.parse(content));
+			const canvasData = parseCanvasContent(content);
 
 			const cardIndex = canvasData.nodes.findIndex(
 				(node: any) => node.text && node.text.includes(`label: ${oldCollection}\n`)
@@ -1908,7 +1912,7 @@ const addorremoveCollection = async (app: App, settings: BlockCollectionsSetting
 		}
 
 		const content = await app.vault.read(canvasFile);
-		const canvasData = normalizeCanvasData(JSON.parse(content));
+		const canvasData = parseCanvasContent(content);
 		const existingCardIndex = findExistingCard(canvasData, newCollectionValue);
 
 		if (existingCardIndex !== -1) {
