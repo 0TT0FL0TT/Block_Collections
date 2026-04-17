@@ -842,6 +842,19 @@ const createCanvasNode = (app: App, files: string[], collectionValue: string, bl
 	};
 };
 
+const preserveExistingCardStyling = (existingNode: any, newNode: any) => {
+	if (!existingNode || !newNode) return;
+
+	const preservedProps = ['color', 'bg', 'border', 'highlight', 'extra'];
+	for (const prop of preservedProps) {
+		if (existingNode[prop] !== undefined) newNode[prop] = existingNode[prop];
+	}
+
+	if (existingNode.styleAttributes !== undefined) {
+		newNode.styleAttributes = existingNode.styleAttributes;
+	}
+};
+
 const updateCanvasFile = async (
 	app: App,
 	settings: BlockCollectionsSettings,
@@ -861,8 +874,9 @@ const updateCanvasFile = async (
 
 		const existingCardIndex = findExistingCard(canvasData, collectionValue);
 		const hadExistingCard = existingCardIndex !== -1;
-		const preservedX = hadExistingCard ? canvasData.nodes[existingCardIndex].x : undefined;
-		const preservedY = hadExistingCard ? canvasData.nodes[existingCardIndex].y : undefined;
+		const existingNode = hadExistingCard ? canvasData.nodes[existingCardIndex] : undefined;
+		const preservedX = hadExistingCard ? existingNode.x : undefined;
+		const preservedY = hadExistingCard ? existingNode.y : undefined;
 
 		const uniqueFiles = new Set(newFiles.map(f => sanitizeFilename(app, f)));
 
@@ -877,6 +891,7 @@ const updateCanvasFile = async (
 
 		const allFiles = Array.from(uniqueFiles).sort((a, b) => a.localeCompare(b, 'hu', { sensitivity: 'base' }));
 		const newNode = createCanvasNode(app, allFiles, collectionValue, blockIdDate, canvasData, settings);
+		if (hadExistingCard && existingNode) preserveExistingCardStyling(existingNode, newNode);
 		if (hadExistingCard && preservedX !== undefined && preservedY !== undefined) {
 			newNode.x = preservedX;
 			newNode.y = preservedY;
