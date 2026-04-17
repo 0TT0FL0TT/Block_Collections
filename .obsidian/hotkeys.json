@@ -25,5 +25,14 @@
       ],
       "key": "B"
     }
+  ],
+  "footnote-navigator:open-footnote-navigator": [
+    {
+      "modifiers": [
+        "Alt",
+        "Mod"
+      ],
+      "key": "F"
+    }
   ]
 }

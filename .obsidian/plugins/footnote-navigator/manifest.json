@@ -1,0 +1,9 @@
+{
+  "id": "footnote-navigator",
+  "name": "Footnote Navigator",
+  "version": "0.0.1",
+  "minAppVersion": "1.4.0",
+  "description": "Navigate footnotes.",
+  "author": "Yours Truly",
+  "isDesktopOnly": false
+}
