@@ -1771,27 +1771,47 @@ const updateFileCollection = async (app: App, file: TFile, newCollectionValue: s
 	}
 };
 
-async function getMostRecentBlockIdDate(app: App, files: TFile[]): Promise<string> {
+function getMostRecentBlockIdDate(app: App, files: TFile[]): string {
 	const yymmddRegex = /^[0-9]{6}$/;
-	const foundDates: string[] = [];
+	let bestDate = '';
 
 	for (const file of files) {
-		const cache = app.metadataCache.getCache(file.path);
+		const cache = app.metadataCache.getFileCache(file);
 		if (!cache?.blocks) continue;
 		for (const blockId of Object.keys(cache.blocks)) {
-			if (yymmddRegex.test(blockId)) foundDates.push(blockId);
+			if (yymmddRegex.test(blockId) && blockId > bestDate) {
+				bestDate = blockId;
+			}
 		}
 	}
 
-	if (foundDates.length === 0) {
+	if (!bestDate) {
 		const now = new Date();
-		const year = now.getFullYear().toString().slice(-2);
-		const month = (now.getMonth() + 1).toString().padStart(2, '0');
-		const day = now.getDate().toString().padStart(2, '0');
-		return `${year}${month}${day}`;
+		return (
+			now.getFullYear().toString().slice(-2) +
+			String(now.getMonth() + 1).padStart(2, '0') +
+			String(now.getDate()).padStart(2, '0')
+		);
 	}
 
-	return foundDates.sort().reverse()[0];
+	return bestDate;
+}
+
+function buildBlockIdIndex(app: App, files: TFile[]): Map<string, TFile[]> {
+	const yymmddRegex = /^[0-9]{6}$/;
+	const index = new Map<string, TFile[]>();
+
+	for (const file of files) {
+		const cache = app.metadataCache.getFileCache(file);
+		if (!cache?.blocks) continue;
+		for (const blockId of Object.keys(cache.blocks)) {
+			if (!yymmddRegex.test(blockId)) continue;
+			if (!index.has(blockId)) index.set(blockId, []);
+			index.get(blockId)!.push(file);
+		}
+	}
+
+	return index;
 }
 
 function extractBlockIdFromSelection(selectedText: string): string | null {
@@ -1837,37 +1857,25 @@ async function handleSelectionBasedCollection(
 	collectionModal.open();
 }
 
-async function fileHasBlockId(app: App, file: TFile, blockId: string): Promise<boolean> {
-	// Fast path: check metadata cache first
-	const cache = app.metadataCache.getCache(file.path);
-	if (cache?.blocks && blockId in cache.blocks) return true;
-	// Fall back to disk read only if cache doesn't have it yet
-	const content = await app.vault.read(file);
-	const blockIdRegex = new RegExp(`\\^${blockId}`, 'gm');
-	let match: RegExpExecArray | null;
-	while ((match = blockIdRegex.exec(content))) {
-		const matchIndex = match.index;
-		if (matchIndex === 0 || content.charAt(matchIndex - 1) !== '#') {
-			return true;
-		}
-	}
-	return false;
-}
-
 async function processFilesWithBlockId(
 	app: App,
 	settings: BlockCollectionsSettings,
-	files: TFile[],
+	blockIdIndex: Map<string, TFile[]>,
 	newCollectionValue: string,
 	blockIdDate: string
 ) {
+	const matchingFiles = blockIdIndex.get(blockIdDate) ?? [];
+
+	if (matchingFiles.length === 0) {
+		new Notice(`No files found with block ID: ^${blockIdDate}`);
+		return;
+	}
+
 	let successCount = 0;
 	let errorCount = 0;
 	const processedFiles: string[] = [];
 
-	for (const file of files) {
-		if (!(await fileHasBlockId(app, file, blockIdDate))) continue;
-
+	for (const file of matchingFiles) {
 		try {
 			const success = await updateFileCollection(app, file, newCollectionValue, blockIdDate);
 			if (success) {
@@ -1880,11 +1888,6 @@ async function processFilesWithBlockId(
 			console.error(`Error processing ${file.path}:`, error);
 			errorCount++;
 		}
-	}
-
-	if (processedFiles.length === 0) {
-		new Notice(`No files found with block ID: ^${blockIdDate}`);
-		return;
 	}
 
 	const canvasUpdated = await updateCanvasFile(app, settings, processedFiles, newCollectionValue, blockIdDate);
@@ -1917,6 +1920,9 @@ const addorremoveCollection = async (app: App, settings: BlockCollectionsSetting
 		return;
 	}
 
+	const blockIdIndex = buildBlockIdIndex(app, files);
+	const defaultDate = getMostRecentBlockIdDate(app, files);
+
 	const collectionModal = new CollectionInputModal(app, '', async result => {
 		const newCollectionValue = result.trim();
 
@@ -1934,15 +1940,13 @@ const addorremoveCollection = async (app: App, settings: BlockCollectionsSetting
 			const cardText = canvasData.nodes[existingCardIndex].text;
 			const blockIdMatch = cardText.match(/Block ([0-9]{6})/);
 			if (blockIdMatch) {
-				await processFilesWithBlockId(app, settings, files, newCollectionValue, blockIdMatch[1]);
+				await processFilesWithBlockId(app, settings, blockIdIndex, newCollectionValue, blockIdMatch[1]);
 			}
 			return;
 		}
-
-		const defaultDate = await getMostRecentBlockIdDate(app, files);
 		setTimeout(() => {
 			const dateModal = new DatePickerModal(app, defaultDate, async blockIdDate => {
-				await processFilesWithBlockId(app, settings, files, newCollectionValue, blockIdDate);
+				await processFilesWithBlockId(app, settings, blockIdIndex, newCollectionValue, blockIdDate);
 			});
 			dateModal.open();
 		}, 0);
@@ -2372,7 +2376,7 @@ const collectionQuerier = async (app: App, settings: BlockCollectionsSettings): 
 					query = `(["collection": /${safeInput}/] /\\^${blockId}/) OR (["collection": /${safeInput}/] -/\\^${blockId}/)`;
 				} else {
 					// Fallback to generic regex if block ID not found
-					query = `(["collection": /${safeInput}/] /\\^(2[0-9]{1}[0-9]{4})/) OR (["collection": /${safeInput}/] -/\\^(2[0-9]{1}[0-9]{4})/)`;
+					query = `(["collection": /${safeInput}/] /\\^([0-9]{6})/) OR (["collection": /${safeInput}/] -/\\^([0-9]{6})/)`;
 					new Notice('Block ID not found for this collection, using generic query');
 				}
 				
@@ -2403,7 +2407,7 @@ const collectionQuerier = async (app: App, settings: BlockCollectionsSettings): 
 					query = `(([\\"${key}": /${safeInput}/] /\\^${blockId}/) OR ([\\"${key}": /${safeInput}/] -/\\^${blockId}/) OR ([\\"${key}": /${safeInput}/] /\`\`\`plantuml/)) OR ((["collection": /${safeInput}/] /\\^${blockId}/) OR (["collection": /${safeInput}/] -/\\^${blockId}/))`;
 				} else {
 					// Fallback to generic regex
-					query = `(([\\"${key}": /${safeInput}/] /\\^(2[0-9]{1}[0-9]{4})/) OR ([\\"${key}": /${safeInput}/] -/\\^(2[0-9]{1}[0-9]{4})/) OR ([\\"${key}": /${safeInput}/] /\`\`\`plantuml/)) OR ((["collection": /${safeInput}/] /\\^(2[0-9]{1}[0-9]{4})/) OR (["collection": /${safeInput}/] -/\\^(2[0-9]{1}[0-9]{4})/))`;
+					query = `(([\\"${key}": /${safeInput}/] /\\^([0-9]{6})/) OR ([\\"${key}": /${safeInput}/] -/\\^([0-9]{6})/) OR ([\\"${key}": /${safeInput}/] /\`\`\`plantuml/)) OR ((["collection": /${safeInput}/] /\\^([0-9]{6})/) OR (["collection": /${safeInput}/] -/\\^([0-9]{6})/))`;
 				}
 				
 				const encodedQuery = encodeURIComponent(query);
