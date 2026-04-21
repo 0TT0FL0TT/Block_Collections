@@ -2371,15 +2371,18 @@ const collectionQuerier = async (app: App, settings: BlockCollectionsSettings): 
 				const blockId = await getBlockIdForCollection(app, settings, userInput);
 				
 				let query: string;
-				if (blockId) {
-					// Use specific block ID for precise matching
-					query = `(["collection": /${safeInput}/] /\\^${blockId}/) OR (["collection": /${safeInput}/] -/\\^${blockId}/)`;
-				} else {
-					// Fallback to generic regex if block ID not found
-					query = `(["collection": /${safeInput}/] /\\^([0-9]{6})/) OR (["collection": /${safeInput}/] -/\\^([0-9]{6})/)`;
-					new Notice('Block ID not found for this collection, using generic query');
-				}
-				
+			if (blockId) {
+				query =
+					`(["collection": /${safeInput}/] /\\^${blockId}/) ` +
+					`OR (["collection": /${safeInput}/] - /\\^${blockId}/)`;
+			} else {
+				query =
+					`(["collection": /${safeInput}/] /(^|[^0-9])\\^[0-9]{6}/) ` +
+					`OR (["collection": /${safeInput}/] - /(^|[^0-9])\\^[0-9]{6}/)`;
+
+				new Notice('Block ID not found for this collection, using generic query');
+			}
+							
 				const encodedQuery = encodeURIComponent(query);
 				const uri = `obsidian://search?query=${encodedQuery}`;
 				const link = document.createElement('a');
@@ -2404,10 +2407,10 @@ const collectionQuerier = async (app: App, settings: BlockCollectionsSettings): 
 				
 				if (blockId) {
 					// Use specific block ID for precise matching
-					query = `(([\\"${key}": /${safeInput}/] /\\^${blockId}/) OR ([\\"${key}": /${safeInput}/] -/\\^${blockId}/) OR ([\\"${key}": /${safeInput}/] /\`\`\`plantuml/)) OR ((["collection": /${safeInput}/] /\\^${blockId}/) OR (["collection": /${safeInput}/] -/\\^${blockId}/))`;
+					query = `(((["${key}": /${safeInput}/] /\\^${blockId}/) OR (["${key}": /${safeInput}/] - /\\^${blockId}/) OR (["${key}": /${safeInput}/] /\`\`\`plantuml/)) OR ((["collection": /${safeInput}/] /\\^${blockId}/) OR (["collection": /${safeInput}/] - /\\^${blockId}/)))`;
 				} else {
 					// Fallback to generic regex
-					query = `(([\\"${key}": /${safeInput}/] /\\^([0-9]{6})/) OR ([\\"${key}": /${safeInput}/] -/\\^([0-9]{6})/) OR ([\\"${key}": /${safeInput}/] /\`\`\`plantuml/)) OR ((["collection": /${safeInput}/] /\\^([0-9]{6})/) OR (["collection": /${safeInput}/] -/\\^([0-9]{6})/))`;
+					query = `(((["${key}": /${safeInput}/] /(^|[^0-9])\\^[0-9]{6}/) OR (["${key}": /${safeInput}/] - /(^|[^0-9])\\^[0-9]{6}/) OR (["${key}": /${safeInput}/] /\`\`\`plantuml/)) OR ((["collection": /${safeInput}/] /(^|[^0-9])\\^[0-9]{6}/) OR (["collection": /${safeInput}/] - /(^|[^0-9])\\^[0-9]{6}/)))`;
 				}
 				
 				const encodedQuery = encodeURIComponent(query);
