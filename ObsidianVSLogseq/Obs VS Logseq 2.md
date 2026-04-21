@@ -13,3 +13,7 @@ Obsidian allows mixing multiple paradigms.
 Markdown-first plugins keep interoperability intact.
 The ecosystem encourages building personal tooling.
 Flexibility becomes the decisive factor.
+
+---
+
+![[Obs VS Logseq 1#^260407]]

@@ -26,8 +26,37 @@
               "icon": "lucide-layout-dashboard",
               "title": "Collections"
             }
+          },
+          {
+            "id": "09df2f67960ad5f7",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "ObsidianVSLogseq/Obs VS Logseq 1.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Obs VS Logseq 1"
+            }
+          },
+          {
+            "id": "cc2a4166f97ade24",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "ObsidianVSLogseq/Obs VS Logseq 2.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Obs VS Logseq 2"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       },
       {
         "id": "0bde98a2b4dfbf11",
@@ -82,7 +111,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "/git",
+                "query": "\"naturally without\"",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -103,7 +132,8 @@
               "title": "Bookmarks"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -209,17 +239,17 @@
       "bases:Create new base": false
     }
   },
-  "active": "3892801091561da3",
+  "active": "afbed0a19c93689f",
   "lastOpenFiles": [
-    "Karácsonyfa.md",
+    "ObsidianVSLogseq/Obs VS Logseq 2.md",
+    "ObsidianVSLogseq/Obs VS Logseq 1.md",
     "Canvases/Collections.canvas",
+    "Karácsonyfa.md",
     "DEL.cursorrules",
     "README.md",
     "ObsidianVSLogseq/Obs VS Logseq 5.md",
     "ObsidianVSLogseq/Obs VS Logseq 4.md",
-    "ObsidianVSLogseq/Obs VS Logseq 1.md",
     "ObsidianVSLogseq/Obs VS Logseq 3.md",
-    "ObsidianVSLogseq/Obs VS Logseq 2.md",
     "Canvases/Collections.canvas.canvas",
     "Test_files/Test1.md",
     "ObsidianVSLogseq",

@@ -1,0 +1,10 @@
+{
+  "id": "flash-search-results",
+  "name": "Flash Search Results",
+  "version": "1.1.0",
+  "minAppVersion": "1.0.0",
+  "description": "Flashes search result rows where the matched text belongs to a block that is embedded elsewhere via ![[file#^blockID]].",
+  "author": "Otto Flott",
+  "authorUrl": "https://github.com/0TT0FL0TT",
+  "isDesktopOnly": false
+}
