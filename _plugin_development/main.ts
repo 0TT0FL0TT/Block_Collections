@@ -726,10 +726,28 @@ const getExistingCardFiles = (cardText: string): string[] => {
 	const files: string[] = [];
 	const lines = cardText.split('\n');
 	for (const line of lines) {
+		// Only consider managed bullet-list lines, never image embeds or extra content
+		if (!line.trimStart().startsWith('- ')) continue;
 		const match = line.match(/\[\[(.*?)(?:#\^.*?)?\]\]/);
 		if (match && match[1]) files.push(match[1].trim());
 	}
 	return files;
+};
+
+/**
+ * Returns everything after the last managed "- " bullet line so that
+ * manually added content (--- separators, image embeds, captions) is
+ * preserved intact across card updates.
+ */
+const extractTrailingContent = (cardText: string): string => {
+	const lines = cardText.split('\n');
+	let lastBulletIndex = -1;
+	for (let i = 0; i < lines.length; i++) {
+		if (lines[i].trimStart().startsWith('- ')) lastBulletIndex = i;
+	}
+	if (lastBulletIndex === -1) return '';
+	const trailing = lines.slice(lastBulletIndex + 1).join('\n').trimEnd();
+	return trailing.length > 0 ? '\n' + trailing : '';
 };
 
 const findSimilarCards = (canvasData: any, collectionValue: string): string[] => {
@@ -879,11 +897,17 @@ const updateCanvasFile = async (
 		const preservedY = hadExistingCard ? existingNode.y : undefined;
 
 		const uniqueFiles = new Set(newFiles.map(f => sanitizeFilename(app, f)));
+		let trailingContent = '';
 
 		if (hadExistingCard) {
-			const existingFiles = getExistingCardFiles(canvasData.nodes[existingCardIndex].text);
+			const existingCardText = canvasData.nodes[existingCardIndex].text;
+			console.log('[BlockCollections] existingCardText:', JSON.stringify(existingCardText));
+			const existingFiles = getExistingCardFiles(existingCardText);
+			console.log('[BlockCollections] existingFiles:', existingFiles);
 			const validExistingFiles = validateExistingFiles(app, existingFiles);
 			validExistingFiles.forEach(file => uniqueFiles.add(sanitizeFilename(app, file)));
+			trailingContent = extractTrailingContent(existingCardText);
+			console.log('[BlockCollections] trailingContent:', JSON.stringify(trailingContent));
 			canvasData.nodes.splice(existingCardIndex, 1);
 			const removedCount = existingFiles.length - validExistingFiles.length;
 			if (removedCount > 0) new Notice(`Removed ${removedCount} missing files from collection`, 3000);
@@ -891,6 +915,9 @@ const updateCanvasFile = async (
 
 		const allFiles = Array.from(uniqueFiles).sort((a, b) => a.localeCompare(b, 'hu', { sensitivity: 'base' }));
 		const newNode = createCanvasNode(app, allFiles, collectionValue, blockIdDate, canvasData, settings);
+		console.log('[BlockCollections] newNode.text before trailing:', JSON.stringify(newNode.text));
+		if (trailingContent) newNode.text += trailingContent;
+		console.log('[BlockCollections] newNode.text after trailing:', JSON.stringify(newNode.text));
 		if (hadExistingCard && existingNode) preserveExistingCardStyling(existingNode, newNode);
 		if (hadExistingCard && preservedX !== undefined && preservedY !== undefined) {
 			newNode.x = preservedX;
@@ -1240,6 +1267,7 @@ class CollectionInputModal extends Modal {
 		modalEl.style.overflowY = 'auto';
 
 		const contentEl = this.contentEl;
+		contentEl.empty();
 
 		// Add section title for adding new collection
 		const addSectionTitle = contentEl.createEl('h3', { text: 'Add to Collection (New or Existing)' });
@@ -1693,6 +1721,7 @@ class CollectionInputModal extends Modal {
 				}
 
 				const files = getExistingCardFiles(oldText);
+				const trailingContent = extractTrailingContent(oldText);
 				const searchTerms = parseCollectionValue(newCollection, this.settings.parseSpacesAsTerms);
 				const encodedSearchTerms = searchTerms.join('%7C');
 				const encodedFiles = files.map(f => encodeURIComponent(f)).join('%7C');
@@ -1719,7 +1748,7 @@ class CollectionInputModal extends Modal {
 					`  link: ${newSearchLink2}`,
 					'```',
 					wikilinks
-				].join('\n');
+				].join('\n') + trailingContent;
 
 				canvasData.nodes[cardIndex].text = newText;
 				await this.app.vault.modify(canvasFile, JSON.stringify(canvasData, null, 2));

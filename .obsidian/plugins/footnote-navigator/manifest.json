@@ -1,9 +1,11 @@
 {
   "id": "footnote-navigator",
   "name": "Footnote Navigator",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "minAppVersion": "1.4.0",
   "description": "Navigate footnotes.",
-  "author": "Yours Truly",
+  "author": "Otto Flott",
+  "authorUrl": "https://github.com/0TT0FL0TT",
+  "fundingUrl": "",
   "isDesktopOnly": false
 }

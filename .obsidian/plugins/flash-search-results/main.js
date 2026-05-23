@@ -61,20 +61,17 @@ module.exports = class FlashSearchResultsPlugin extends Plugin {
     }
 
     getFilePath(result) {
-    // Try data-link-path first (present when certain plugins are active)
-    const el = result.querySelector('[data-link-path]');
-    if (el?.dataset?.linkPath) return el.dataset.linkPath;
+        const el = result.querySelector('[data-link-path]');
+        if (el?.dataset?.linkPath) return el.dataset.linkPath;
 
-    // Fallback: resolve display name from .tree-item-inner
-    const titleEl = result.querySelector('.tree-item-inner');
-    if (!titleEl) return null;
-    const displayName = titleEl.textContent?.trim();
-    if (!displayName) return null;
+        const titleEl = result.querySelector('.tree-item-inner');
+        if (!titleEl) return null;
+        const displayName = titleEl.textContent?.trim();
+        if (!displayName) return null;
 
-    // Find matching file in vault by basename
-    const file = this.app.metadataCache.getFirstLinkpathDest(displayName, '');
-    return file?.path ?? null;
-}
+        const file = this.app.metadataCache.getFirstLinkpathDest(displayName, '');
+        return file?.path ?? null;
+    }
 
     async processResults() {
         const results = document.querySelectorAll('.search-result');
@@ -117,6 +114,8 @@ module.exports = class FlashSearchResultsPlugin extends Plugin {
                 const snippet = matchEl.textContent?.trim().toLowerCase() ?? '';
                 if (!snippet) continue;
 
+                // Collect ALL matching line indices for this snippet
+                const matchingLines = [];
                 for (let i = 0; i < lines.length; i++) {
                     const stripped = lines[i]
                         .replace(/\[\[([^\]|]+\|)?([^\]]+)\]\]/g, '$2')
@@ -128,13 +127,27 @@ module.exports = class FlashSearchResultsPlugin extends Plugin {
                         .trim()
                         .toLowerCase();
 
-                    if (!stripped.includes(snippet) && !lines[i].toLowerCase().includes(snippet)) continue;
-
-                    const blockId = this.findBlockIdForLine(i, fileCache);
-                    if (blockId && this.embedIndex.has(`${filePath}#${blockId}`)) {
-                        matchEl.classList.add(FLASH_CLASS);
+                    if (stripped.includes(snippet) || lines[i].toLowerCase().includes(snippet)) {
+                        matchingLines.push(i);
                     }
-                    break;
+                }
+
+                if (matchingLines.length === 0) continue;
+
+                // Determine which occurrence this matchEl corresponds to
+                // by counting its position among matchEls with the same snippet
+                const allSameSnippetEls = Array.from(
+                    result.querySelectorAll('.search-result-file-matched-text')
+                ).filter(el => el.textContent?.trim().toLowerCase() === snippet);
+
+                const occurrenceIndex = allSameSnippetEls.indexOf(matchEl);
+
+                // Pick the corresponding line occurrence (clamp to last if fewer lines than elements)
+                const lineIndex = matchingLines[Math.min(occurrenceIndex, matchingLines.length - 1)];
+
+                const blockId = this.findBlockIdForLine(lineIndex, fileCache);
+                if (blockId && this.embedIndex.has(`${filePath}#${blockId}`)) {
+                    matchEl.classList.add(FLASH_CLASS);
                 }
             }
 
