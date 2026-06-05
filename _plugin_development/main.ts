@@ -2101,11 +2101,16 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 		// const allBlockIds = Array.from(selection.matchAll(inlineBlockIdRegex), m => m[1]);
 		const inlineBlockIdRegex = /[^\[]\^([a-zA-Z0-9-]+)/g;
 		const allBlockIdMatches = Array.from(selection.matchAll(inlineBlockIdRegex));
-		// Filter out block IDs followed by ] (iOS 15 compatible - no negative lookahead)
+		// Filter out:
+		// 1. Block IDs followed by ] (part of [[...#^id]] wikilinks)
+		// 2. Block IDs preceded by # (anchor in wikilink: [[Note#^id|alias]])
 		const allBlockIds = allBlockIdMatches
 			.filter(m => {
 				const endPos = m.index! + m[0].length;
-				return selection.charAt(endPos) !== ']';
+				const charAfter = selection.charAt(endPos);
+				// m[0][0] is the non-[ character before ^; if it's #, this is a wikilink anchor
+				const charBeforeCaret = m[0][0];
+				return charAfter !== ']' && charBeforeCaret !== '#';
 			})
 			.map(m => m[1]);
 		if (allBlockIds.length === 1) {
