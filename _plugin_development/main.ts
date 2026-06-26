@@ -8,6 +8,7 @@ interface BlockCollectionsSettings {
 	zoteroAuthorTitleKey: string;
 	zoteroItemIdKey: string;
 	parseSpacesAsTerms: boolean;
+	openWorkspaceText: string;
 }
 
 const DEFAULT_SETTINGS: BlockCollectionsSettings = {
@@ -17,7 +18,8 @@ const DEFAULT_SETTINGS: BlockCollectionsSettings = {
 	plantUMLFrontmatterKey: 'plantuml_nodes',
 	zoteroAuthorTitleKey: 'zotero_author-title',
 	zoteroItemIdKey: 'zotero_itemid',
-	parseSpacesAsTerms: false
+	parseSpacesAsTerms: false,
+	openWorkspaceText: '🗂 Open Workspace'
 };
 
 const CONFIG = {
@@ -809,9 +811,24 @@ const calculateNodeHeight = (filesCount: number): number => {
 	return baseHeight + listHeight + urlBuffer + padding;
 };
 
-const createCanvasNode = (app: App, files: string[], collectionValue: string, blockIdDate: string, canvasData: any, settings: BlockCollectionsSettings) => {
+const createCanvasNode = async (app: App, files: string[], collectionValue: string, blockIdDate: string, canvasData: any, settings: BlockCollectionsSettings) => {
 	const triggerId1 = 'trigger-' + Math.random().toString(36).substring(2, 5);
 	const triggerId2 = 'trigger-' + Math.random().toString(36).substring(2, 5);
+
+	// Workspace lookup
+	let matchingWorkspaceName: string | null = null;
+	try {
+		const workspacesPath = `${app.vault.configDir}/workspaces.json`;
+		const raw = await app.vault.adapter.read(workspacesPath);
+		const workspacesJson = JSON.parse(raw);
+		// Obsidian stores workspaces under a "workspaces" key, not at root level
+		const workspacesObj = workspacesJson.workspaces ?? workspacesJson;
+		matchingWorkspaceName = Object.keys(workspacesObj).find(
+			name => name.startsWith(blockIdDate)
+		) ?? null;
+	} catch {
+		// workspaces.json missing or unreadable — silent skip
+	}
 
 	const searchTerms = parseCollectionValue(collectionValue, settings.parseSpacesAsTerms);
 	const sanitizedFiles = files.map(f => sanitizeFilename(app, f));
@@ -823,7 +840,16 @@ const createCanvasNode = (app: App, files: string[], collectionValue: string, bl
 	const wikilinks = sanitizedFiles.map(f => `- [[${f}#^${dateBlockId}]]`).join('\n');
 	const contentHeight = calculateNodeHeight(sanitizedFiles.length);
 
-	const nodeText = [
+	// Build workspace link if matching workspace found
+	let workspaceLine: string | null = null;
+	if (matchingWorkspaceName) {
+		const vaultName = app.vault.getName();
+		const encodedWorkspace = encodeURIComponent(matchingWorkspaceName);
+		const workspaceLink = `obsidian://advanced-uri?vault=${encodeURIComponent(vaultName)}&workspace=${encodedWorkspace}`;
+		workspaceLine = `**[${settings.openWorkspaceText}](${workspaceLink})**`;
+	}
+
+	const nodeTextParts = [
 		'```meta-bind-button',
 		'style: primary',
 		`label: ${collectionValue}`,
@@ -840,8 +866,10 @@ const createCanvasNode = (app: App, files: string[], collectionValue: string, bl
 		'  type: open',
 		`  link: ${searchLink2}`,
 		'```',
+		...(workspaceLine ? [workspaceLine] : []),
 		wikilinks
-	].join('\n');
+	];
+	const nodeText = nodeTextParts.join('\n');
 
 	const cardWidth = determineCardWidth(collectionValue);
 	const position = findOptimalPosition(canvasData, cardWidth, contentHeight);
@@ -914,7 +942,7 @@ const updateCanvasFile = async (
 		}
 
 		const allFiles = Array.from(uniqueFiles).sort((a, b) => a.localeCompare(b, 'hu', { sensitivity: 'base' }));
-		const newNode = createCanvasNode(app, allFiles, collectionValue, blockIdDate, canvasData, settings);
+		const newNode = await createCanvasNode(app, allFiles, collectionValue, blockIdDate, canvasData, settings);
 		console.log('[BlockCollections] newNode.text before trailing:', JSON.stringify(newNode.text));
 		if (trailingContent) newNode.text += trailingContent;
 		console.log('[BlockCollections] newNode.text after trailing:', JSON.stringify(newNode.text));
@@ -1559,7 +1587,7 @@ class CollectionInputModal extends Modal {
 		} else {
 			if (blockId) {
 				canvasData.nodes.splice(cardIndex, 1);
-				const newNode = createCanvasNode(this.app, remainingFiles, collectionValue, blockId, canvasData, this.settings);
+				const newNode = await createCanvasNode(this.app, remainingFiles, collectionValue, blockId, canvasData, this.settings);
 				newNode.x = cardNode.x;
 				newNode.y = cardNode.y;
 				canvasData.nodes.push(newNode);
@@ -2548,6 +2576,16 @@ class BlockCollectionsSettingTab extends PluginSettingTab {
 			.addText(text =>
 				text.setValue(this.plugin.settings.zoteroItemIdKey).onChange(async value => {
 					this.plugin.settings.zoteroItemIdKey = value.trim() || DEFAULT_SETTINGS.zoteroItemIdKey;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName('Open Workspace text')
+			.setDesc('Text displayed for the workspace link in canvas cards. Can be customized for any language.')
+			.addText(text =>
+				text.setValue(this.plugin.settings.openWorkspaceText).onChange(async value => {
+					this.plugin.settings.openWorkspaceText = value.trim() || DEFAULT_SETTINGS.openWorkspaceText;
 					await this.plugin.saveSettings();
 				})
 			);

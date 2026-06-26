@@ -12,7 +12,7 @@ Open Settings → Block Collections to configure:
 
 - **Canvas relative path** — path to your canvas file from the vault root (default: `Canvases/Collections.canvas`)
 - **Folders to exclude** — comma-separated folder names skipped during vault-wide scans (default: `SYSTEM`, `DAILY`, `assets`, `HUB`)
-- **Parse spaces as separate search terms** — when enabled, collection names like `"obsidian blocks"` are treated as two separate search terms (`obsidian|blocks`) in the canvas button query, equivalent to writing `"obsidian, blocks"`. When disabled (default), spaces are preserved as literal spaces in the search. Enable it if you want the individual strings searched in the content of the linked files.
+- **Parse spaces as separate search terms** — when enabled, collection names like `"obsidian blocks"` are treated as two separate search terms (`obsidian|blocks`) in the canvas button query, equivalent to writing `"obsidian, blocks"`. When disabled (default), spaces are preserved as literal spaces in the search.
 - **Show PlantUML** — toggles the PlantUML section in the Collection Querier modal (default: `false`, because scripts relating to the handling of frontmatter properties to files are not bundled with the plugin)
 
 Other settings that only make sense to the author of this plugin:
@@ -117,10 +117,13 @@ If the collection has an associated collection block ID, the plugin also removes
 
 ### Canvas Cards
 
-Each card created by this command contains two Meta Bind buttons and a wikilink list:
+Each card created by this command contains two Meta Bind buttons, an optional workspace link, and a wikilink list:
 
 - **Collection title button** (primary style, top): opens an Obsidian search across the collection's files for content matching the collection's label terms. Use this to find notes whose body text relates to the collection topic.
 - **Block `YYMMDD` button** (default style, below): opens a search for the specific block ID across the collection's files. Use this to jump directly to the dated block entries — the exact passages tagged when the collection was created. The button label is rendered as `Block 260407` (for example).
+- **Workspace link** (optional, between the buttons and the wikilink list): if an Obsidian workspace exists whose name starts with the same `YYMMDD` code as the collection's block ID, a clickable link is inserted here that opens that workspace via the [Advanced URI plugin](https://obsidian.md/plugins?id=obsidian-advanced-uri). This lets you return to the exact set of open tabs and web pages you had when working on this collection topic — weeks or months later. If no matching workspace exists, this line is silently omitted. Requires the **Advanced URI** community plugin to be installed.
+	- If you install the Workspace Revealer plugin from the [0TT0FL0TT SUITE](https://github.com/0TT0FL0TT/0TT0FL0TT_SUITE), each md file you open if it was saved in any workspace will be shown in a notice as a reminder that that note was part of a workspace which you have worked on in the past.
+
 - Below the buttons: a list of wikilinks to each file, each pointing directly to the block ID anchor (`[[Filename#^YYMMDD]]`).
 
 The file list inside a card is sorted alphabetically and missing files are pruned automatically when a card is rebuilt. Similar collection names trigger a notice after the collection is added so you can catch near-duplicates and reframe existing collections if necessary.
@@ -143,4 +146,4 @@ A filterable dropdown of all `collection` frontmatter values. Clicking a value f
 
 Both buttons copy the generated query string to the clipboard and open it in Obsidian's built-in search simultaneously.
 
-Escape closes the modal. Enter triggers the focused section's submit button.  
+Escape closes the modal. Enter triggers the focused section's submit button.
