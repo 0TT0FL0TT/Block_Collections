@@ -399,7 +399,7 @@ class EnhancedDatePickerModal extends Modal {
 
 			const existingCollection = await findCollectionValueByBlockId(this.app, this.settings, pickedDate);
 			if (existingCollection) {
-				new Notice(`ℹ️ Block ID ${pickedDate} is already used by collection: "${existingCollection}"`, 6000);
+				new Notice(`ℹ️ Block ID ${pickedDate} is already used by collection: "${existingCollection}"`);
 			}
 
 			this.onSubmit(pickedDate);
@@ -916,7 +916,7 @@ const updateCanvasFile = async (
 		const canvasData = parseCanvasContent(content);
 
 		const similarCards = findSimilarCards(canvasData, collectionValue);
-		if (similarCards.length > 0) new Notice(`Similar collections found: ${similarCards.join(', ')}`, 5000);
+		if (similarCards.length > 0) new Notice(`Similar collections found: ${similarCards.join(', ')}`);
 
 		const existingCardIndex = findExistingCard(canvasData, collectionValue);
 		const hadExistingCard = existingCardIndex !== -1;
@@ -938,7 +938,7 @@ const updateCanvasFile = async (
 			console.log('[BlockCollections] trailingContent:', JSON.stringify(trailingContent));
 			canvasData.nodes.splice(existingCardIndex, 1);
 			const removedCount = existingFiles.length - validExistingFiles.length;
-			if (removedCount > 0) new Notice(`Removed ${removedCount} missing files from collection`, 3000);
+			if (removedCount > 0) new Notice(`Removed ${removedCount} missing files from collection`);
 		}
 
 		const allFiles = Array.from(uniqueFiles).sort((a, b) => a.localeCompare(b, 'hu', { sensitivity: 'base' }));
