@@ -1450,6 +1450,12 @@ class CollectionInputModal extends Modal {
 		this.collectionList.innerHTML = '';
 		const filterLower = filter.toLowerCase();
 
+		// Track which item is currently selected so we can toggle it
+		let selectedItem: HTMLElement | null = null;
+
+		// Resolve the text input so clicking a collection populates it
+		const inputEl = this.contentEl.querySelector<HTMLInputElement>('input[placeholder="value1, value2, value3"]');
+
 		this.collections
 			.filter(collection => !filter || collection.toLowerCase().includes(filterLower))
 			.forEach(collection => {
@@ -1465,9 +1471,38 @@ class CollectionInputModal extends Modal {
 				item.style.fontSize = CONFIG.collectionDropdown.fontSize;
 				item.style.backgroundColor = 'var(--background-modifier-form-field)';
 
-				item.addEventListener('mouseenter', () => (item.style.backgroundColor = 'var(--background-modifier-hover)'));
-				item.addEventListener('mouseleave', () => (item.style.backgroundColor = 'var(--background-modifier-form-field)'));
-				item.addEventListener('click', () => this.handleSubmit(collection));
+				const normalBg = 'var(--background-modifier-form-field)';
+				const hoverBg = 'var(--background-modifier-hover)';
+				const selectedBg = 'var(--interactive-accent)';
+
+				item.addEventListener('mouseenter', () => {
+					if (item !== selectedItem) item.style.backgroundColor = hoverBg;
+				});
+				item.addEventListener('mouseleave', () => {
+					if (item !== selectedItem) item.style.backgroundColor = normalBg;
+				});
+
+				item.addEventListener('click', () => {
+					if (item === selectedItem) {
+						// Deselect: clear highlight and empty the input
+						item.style.backgroundColor = normalBg;
+						item.style.color = '';
+						selectedItem = null;
+						if (inputEl) inputEl.value = '';
+					} else {
+						// Deselect previous item if any
+						if (selectedItem) {
+							selectedItem.style.backgroundColor = normalBg;
+							selectedItem.style.color = '';
+						}
+						// Select this item
+						item.style.backgroundColor = selectedBg;
+						item.style.color = 'var(--text-on-accent)';
+						selectedItem = item;
+						// Populate the text input so Add button picks it up
+						if (inputEl) inputEl.value = collection;
+					}
+				});
 			});
 	}
 
