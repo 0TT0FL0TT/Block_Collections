@@ -1625,6 +1625,7 @@ class CollectionInputModal extends Modal {
 				const newNode = await createCanvasNode(this.app, remainingFiles, collectionValue, blockId, canvasData, this.settings);
 				newNode.x = cardNode.x;
 				newNode.y = cardNode.y;
+				preserveExistingCardStyling(cardNode, newNode);
 				canvasData.nodes.push(newNode);
 			}
 			new Notice(`Removed ${file.basename} from collection "${collectionValue}"`);
