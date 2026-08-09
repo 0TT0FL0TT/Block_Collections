@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, moment } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 
 interface BlockCollectionsSettings {
 	canvasRelativePath: string;
@@ -191,7 +191,7 @@ const updateZoteroFrontmatter = async (
 			if (!frontmatter[itemIdKey].includes(id)) frontmatter[itemIdKey].push(id);
 		});
 
-		frontmatter.date_modified = moment().format('YYYY-MM-DDTHH:mm');
+		frontmatter.date_modified = window.moment().format('YYYY-MM-DDTHH:mm');
 		return frontmatter;
 	});
 };
@@ -2336,7 +2336,7 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 					});
 				}
 
-				frontmatter.date_modified = moment().format('YYYY-MM-DDTHH:mm');
+				frontmatter.date_modified = window.moment().format('YYYY-MM-DDTHH:mm');
 				return frontmatter;
 			});
 		}
@@ -2353,12 +2353,7 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 	}
 
 	selection = selection.replace(/\s+$/, '');
-	const endsWithBlockquoteLine = (text: string): boolean => {
-		const normalized = text.replace(/\n+$/, '');
-		const ls = normalized.split('\n');
-		const lastLine = ls[ls.length - 1] ?? '';
-		return /^>/.test(lastLine.trimStart());
-	};
+
 
 	await new Promise<void>(resolve => {
 		const modal = new BlockIdChoiceModal(app, async type => {
@@ -2366,10 +2361,7 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 				const blockId = generateRandomBlockId().trim();
 
 				if (hasSelection) {
-					const isBlockquote = endsWithBlockquoteLine(selection);
-					const newBlock = isBlockquote
-						? selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`
-						: selection + `\n^${blockId}`;
+					const newBlock = selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`;
 
 					const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, newBlock);
 					await app.vault.modify(currentFile, newContent);
@@ -2412,10 +2404,7 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 				async pickedDate => {
 					const blockId = pickedDate.trim();
 					if (hasSelection) {
-						const isBlockquote = endsWithBlockquoteLine(selection);
-						const newBlock = isBlockquote
-							? selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`
-							: selection + `\n^${blockId}`;
+						const newBlock = selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`;
 
 						const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, newBlock);
 						await app.vault.modify(currentFile, newContent);
