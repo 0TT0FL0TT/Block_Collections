@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, moment } from 'obsidian';
 
 interface BlockCollectionsSettings {
 	canvasRelativePath: string;
@@ -141,6 +141,54 @@ function ensureProperLineSpacing(content: string, blockStart: number, blockEnd: 
 	return content.substring(0, blockStart) + newBlock + '\n\n' + afterBlock;
 }
 
+/**
+ * Applies newText to the editor by replacing only the span that actually differs.
+ * Writing through the Editor API (instead of vault.modify on a file that is open in an editor)
+ * keeps the editor and the file in sync and avoids stale-snapshot overwrites.
+ */
+function applyViaEditor(editor: Editor, oldText: string, newText: string): void {
+	if (oldText === newText) return;
+	let start = 0;
+	const minLen = Math.min(oldText.length, newText.length);
+	while (start < minLen && oldText[start] === newText[start]) start++;
+	let endOld = oldText.length;
+	let endNew = newText.length;
+	while (endOld > start && endNew > start && oldText[endOld - 1] === newText[endNew - 1]) {
+		endOld--;
+		endNew--;
+	}
+	editor.replaceRange(newText.slice(start, endNew), editor.offsetToPos(start), editor.offsetToPos(endOld));
+}
+
+/** Finds `needle` in `content`, choosing the occurrence closest to `expectedStart`. -1 if absent. */
+function relocateSelection(content: string, needle: string, expectedStart: number): number {
+	if (!needle) return -1;
+	let best = -1;
+	let bestDist = Infinity;
+	let idx = content.indexOf(needle);
+	while (idx !== -1) {
+		const dist = Math.abs(idx - expectedStart);
+		if (dist < bestDist) {
+			best = idx;
+			bestDist = dist;
+		}
+		idx = content.indexOf(needle, idx + 1);
+	}
+	return best;
+}
+
+/** Waits until the editor content differs from `previous` (e.g. after an external frontmatter write). */
+async function waitForEditorChange(editor: Editor, previous: string, timeoutMs: number): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		if (editor.getValue() !== previous) {
+			await new Promise(r => setTimeout(r, 100));
+			return;
+		}
+		await new Promise(r => setTimeout(r, 50));
+	}
+}
+
 const findFirstH4Heading = (content: string, selection: string): string | null => {
 	const selectionIndex = content.indexOf(selection);
 	if (selectionIndex === -1) return null;
@@ -191,7 +239,7 @@ const updateZoteroFrontmatter = async (
 			if (!frontmatter[itemIdKey].includes(id)) frontmatter[itemIdKey].push(id);
 		});
 
-		frontmatter.date_modified = window.moment().format('YYYY-MM-DDTHH:mm');
+		frontmatter.date_modified = moment().format('YYYY-MM-DDTHH:mm');
 		return frontmatter;
 	});
 };
@@ -1636,13 +1684,9 @@ class CollectionInputModal extends Modal {
 		// Also remove the block ID from the file content itself
 		if (blockId) {
 			try {
-				const fileContent = await this.app.vault.read(file);
 				// Remove the block ID from the content
 				const blockIdPattern = new RegExp(`\\s?\\^${blockId}\\b`, 'g');
-				const newContent = fileContent.replace(blockIdPattern, '');
-				if (newContent !== fileContent) {
-					await this.app.vault.modify(file, newContent);
-				}
+				await this.app.vault.process(file, data => data.replace(blockIdPattern, ''));
 			} catch (error) {
 				console.error('Error removing block ID from file:', error);
 			}
@@ -1848,14 +1892,11 @@ const updateFileCollection = async (app: App, file: TFile, newCollectionValue: s
 			return frontmatter;
 		});
 
-		const content = await app.vault.read(file);
 		const blockId = `^${blockIdDate}`;
-		if (!content.includes(blockId)) {
-			let newContent = content;
-			if (!content.endsWith('\n')) newContent += '\n';
-			newContent += `${blockId}\n`;
-			await app.vault.modify(file, newContent);
-		}
+		await app.vault.process(file, content => {
+			if (content.includes(blockId)) return content;
+			return (content.endsWith('\n') ? content : content + '\n') + `${blockId}\n`;
+		});
 
 		return true;
 	} catch (error) {
@@ -2229,23 +2270,16 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 	for (let i = 0; i < selEnd.line; i++) charEnd += lines[i].length + 1;
 	charEnd += selEnd.ch;
 
-	// Check if editor content matches selection
-	const editorContentAtSelection = editorContent.substring(charStart, charEnd);
-	let fileContent: string;
-	if (editorContentAtSelection === selection) {
-		// Editor content is consistent with selection — use it as working copy
-		fileContent = editorContent;
-	} else {
-		// Still out of sync somehow — fall back to disk content as-is
-		console.log('[BlockCollections] Editor content mismatch, falling back to disk...');
-		fileContent = await app.vault.read(currentFile);
-		const diskLines = fileContent.split('\n');
-		charStart = 0;
-		charEnd = 0;
-		for (let i = 0; i < selStart.line; i++) charStart += diskLines[i].length + 1;
-		charStart += selStart.ch;
-		for (let i = 0; i < selEnd.line; i++) charEnd += diskLines[i].length + 1;
-		charEnd += selEnd.ch;
+	// Always work from the LIVE editor buffer (never a disk copy): all positions here are editor positions.
+	const fileContent = editorContent;
+	if (editorContent.substring(charStart, charEnd) !== selection) {
+		const idx = relocateSelection(editorContent, selection, charStart);
+		if (idx === -1) {
+			new Notice('Could not locate the selection in the note. Please try again.');
+			return;
+		}
+		charStart = idx;
+		charEnd = idx + selection.length;
 	}
 
 	const textAfterSelection = fileContent.substring(charEnd);
@@ -2314,11 +2348,10 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 			return `${paragraph.trim()} ^${combinedId}`;
 		});
 
-		const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, updatedParagraphs.join('\n\n'));
-		await app.vault.modify(currentFile, newContent);
-		await new Promise(resolve => setTimeout(resolve, 2000));
-
+		// 1) Frontmatter FIRST, while the editor has no unsaved changes of its own
+		//    (writing a file that has unsaved editor changes triggers Obsidian's fuzzy merge).
 		if (Object.keys(pendingFrontmatterChanges).length > 0) {
+			const before = editor.getValue();
 			await app.fileManager.processFrontMatter(currentFile, frontmatter => {
 				const authorKey = settings.zoteroAuthorTitleKey;
 				const itemIdKey = settings.zoteroItemIdKey;
@@ -2336,9 +2369,32 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 					});
 				}
 
-				frontmatter.date_modified = window.moment().format('YYYY-MM-DDTHH:mm');
+				frontmatter.date_modified = moment().format('YYYY-MM-DDTHH:mm');
 				return frontmatter;
 			});
+			await waitForEditorChange(editor, before, 3000);
+		}
+
+		// 2) Re-read the live editor (frontmatter edit shifted offsets) and insert via the Editor API
+		const live = editor.getValue();
+		let zStart = charStart;
+		let zEnd = charEnd;
+		if (live !== fileContent) {
+			const idx = relocateSelection(live, selection, charStart);
+			if (idx === -1) {
+				new Notice('The note changed in the meantime and the selection could not be found again. Please try again.');
+				return;
+			}
+			zStart = idx;
+			zEnd = idx + selection.length;
+		}
+		const newContent = ensureProperLineSpacing(live, zStart, zEnd, updatedParagraphs.join('\n\n'));
+		applyViaEditor(editor, live, newContent);
+
+		const missingIds = createdBlockIds.filter(id => !editor.getValue().includes(`^${id}`));
+		if (missingIds.length > 0) {
+			new Notice(`Block ID(s) could not be written to the note: ${missingIds.map(id => '^' + id).join(', ')}`);
+			return;
 		}
 
 		if (createdBlockIds.length === 1 && !currentFile.basename.startsWith('@')) {
@@ -2352,43 +2408,80 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 		return;
 	}
 
+	const rawSelection = selection;
 	selection = selection.replace(/\s+$/, '');
+	const endsWithBlockquoteLine = (text: string): boolean => {
+		const normalized = text.replace(/\n+$/, '');
+		const ls = normalized.split('\n');
+		const lastLine = ls[ls.length - 1] ?? '';
+		return /^>/.test(lastLine.trimStart());
+	};
 
+	// The note may have changed while a modal was open (autosave, Sync, other plugins),
+	// so the range is always resolved against the LIVE editor content at write time.
+	const resolveRange = (mode: 'selection' | 'line'): { live: string; start: number; end: number } | null => {
+		const live = editor.getValue();
+		if (mode === 'line') {
+			const cur = editor.getCursor();
+			const liveLines = live.split('\n');
+			const lineText = liveLines[cur.line];
+			if (lineText === undefined) return null;
+			let start = 0;
+			for (let i = 0; i < cur.line; i++) start += liveLines[i].length + 1;
+			return { live, start, end: start + lineText.length };
+		}
+		if (live === fileContent) return { live, start: charStart, end: charEnd };
+		const idx = relocateSelection(live, rawSelection, charStart);
+		if (idx === -1) return null;
+		return { live, start: idx, end: idx + rawSelection.length };
+	};
+
+	// Writes through the Editor API (no external file write -> no "modified externally"
+	// merge, no stale-snapshot overwrite) and only copies the link if the ID is really there.
+	const commitBlock = async (live: string, newContent: string, blockId: string): Promise<boolean> => {
+		applyViaEditor(editor, live, newContent);
+		if (!editor.getValue().includes(`^${blockId}`)) {
+			new Notice(`Block ID ^${blockId} could not be written to the note. Nothing was copied to the clipboard.`);
+			return false;
+		}
+		const clipboardText = `![[${currentFile.basename}#^${blockId}]]`;
+		await navigator.clipboard.writeText(clipboardText);
+		new Notice(`Link ${clipboardText} has been added to the clipboard`);
+		return true;
+	};
+
+	const insertBlock = async (blockId: string): Promise<void> => {
+		if (hasSelection) {
+			const range = resolveRange('selection');
+			if (!range) {
+				new Notice('The note changed while the dialog was open and the selection could not be found again. Please try again.');
+				return;
+			}
+			const isBlockquote = endsWithBlockquoteLine(selection);
+			const newBlock = isBlockquote
+				? selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`
+				: selection + `\n^${blockId}`;
+			const newContent = ensureProperLineSpacing(range.live, range.start, range.end, newBlock);
+			await commitBlock(range.live, newContent, blockId);
+			return;
+		}
+
+		const range = resolveRange('line');
+		if (!range) {
+			new Notice('Could not resolve the current line. Please try again.');
+			return;
+		}
+		const lineContent = range.live.substring(range.start, range.end);
+		const trimmedLine = lineContent.replace(/\s+$/, '');
+		const newBlock = trimmedLine + (trimmedLine ? ' ' : '') + `^${blockId}`;
+		const newContent = ensureProperLineSpacing(range.live, range.start, range.end, newBlock);
+		await commitBlock(range.live, newContent, blockId);
+	};
 
 	await new Promise<void>(resolve => {
 		const modal = new BlockIdChoiceModal(app, async type => {
 			if (type === 'random') {
-				const blockId = generateRandomBlockId().trim();
-
-				if (hasSelection) {
-					const newBlock = selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`;
-
-					const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, newBlock);
-					await app.vault.modify(currentFile, newContent);
-					const clipboardText = `![[${currentFile.basename}#^${blockId}]]`;
-					await navigator.clipboard.writeText(clipboardText);
-					new Notice(`Link ${clipboardText} has been added to the clipboard`);
-					resolve();
-					return;
-				}
-
-				const cursor = editor.getCursor();
-				const lineNumber = cursor.line;
-				const lineContent = editor.getLine(lineNumber);
-
-				let charLineStart = 0;
-				const fileLines = fileContent.split('\n');
-				for (let i = 0; i < lineNumber; i++) charLineStart += fileLines[i].length + 1;
-				const blockStart = charLineStart;
-				const blockEnd = charLineStart + lineContent.length;
-				const trimmedLine = lineContent.replace(/\s+$/, '');
-				const newBlock = trimmedLine + (trimmedLine ? ' ' : '') + `^${blockId}`;
-				const newContent = ensureProperLineSpacing(fileContent, blockStart, blockEnd, newBlock);
-				await app.vault.modify(currentFile, newContent);
-
-				const clipboardText = `![[${currentFile.basename}#^${blockId}]]`;
-				await navigator.clipboard.writeText(clipboardText);
-				new Notice(`Link ${clipboardText} has been added to the clipboard`);
+				await insertBlock(generateRandomBlockId().trim());
 				resolve();
 				return;
 			}
@@ -2402,37 +2495,7 @@ const blockIdCreator = async (app: App, settings: BlockCollectionsSettings): Pro
 				app,
 				defaultDate,
 				async pickedDate => {
-					const blockId = pickedDate.trim();
-					if (hasSelection) {
-						const newBlock = selection.replace(/\n+$/, '').replace(/\s+$/, '') + ` ^${blockId}`;
-
-						const newContent = ensureProperLineSpacing(fileContent, charStart, charEnd, newBlock);
-						await app.vault.modify(currentFile, newContent);
-						const clipboardText = `![[${currentFile.basename}#^${blockId}]]`;
-						await navigator.clipboard.writeText(clipboardText);
-						new Notice(`Link ${clipboardText} has been added to the clipboard`);
-						resolve();
-						return;
-					}
-
-					const cursor = editor.getCursor();
-					const lineNumber = cursor.line;
-					const lineContent = editor.getLine(lineNumber);
-
-					let charLineStart = 0;
-					const fileLines = fileContent.split('\n');
-					for (let i = 0; i < lineNumber; i++) charLineStart += fileLines[i].length + 1;
-					const blockStart = charLineStart;
-					const blockEnd = charLineStart + lineContent.length;
-
-					const trimmedLine = lineContent.replace(/\s+$/, '');
-					const newBlock = trimmedLine + (trimmedLine ? ' ' : '') + `^${blockId}`;
-					const newContent = ensureProperLineSpacing(fileContent, blockStart, blockEnd, newBlock);
-					await app.vault.modify(currentFile, newContent);
-
-					const clipboardText = `![[${currentFile.basename}#^${blockId}]]`;
-					await navigator.clipboard.writeText(clipboardText);
-					new Notice(`Link ${clipboardText} has been added to the clipboard`);
+					await insertBlock(pickedDate.trim());
 					resolve();
 				},
 				() => settings.canvasRelativePath,
